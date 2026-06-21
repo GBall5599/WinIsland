@@ -1,0 +1,79 @@
+using System.IO;
+using System.Text.Json;
+
+namespace WinIsland
+{
+    public class AppSettings
+    {
+        public bool DrinkWaterEnabled { get; set; } = false;
+        public int DrinkWaterIntervalMinutes { get; set; } = 30;
+        public bool TodoEnabled { get; set; } = false;
+        public string DrinkWaterStartTime { get; set; } = "09:00";
+        public string DrinkWaterEndTime { get; set; } = "22:00";
+        public DrinkWaterMode DrinkWaterMode { get; set; } = DrinkWaterMode.Interval;
+        public List<string> CustomDrinkWaterTimes { get; set; } = new List<string>();
+        public List<TodoItem> TodoList { get; set; } = new List<TodoItem>();
+        public bool CleanSystemNotification { get; set; } = false;
+
+        // 新增配置项
+        public bool EnableBluetoothNotification { get; set; } = true;
+        public bool EnableUsbNotification { get; set; } = true;
+        public bool EnableMessageNotification { get; set; } = true;
+        public bool ShowMediaPlayer { get; set; } = true;
+        public bool ShowVisualizer { get; set; } = true;
+
+        // 新增 极客与专注 配置
+        public bool EnableSystemMonitor { get; set; } = false; // 系统监控 (替换待机黑条)
+        public bool EnableFocusMode { get; set; } = true;      // 专注模式 (番茄钟)
+        public int PomodoroDurationMinutes { get; set; } = 25; // 专注时长 (分钟)
+        public bool EnableAutoHide { get; set; } = true;       // 智能隐身
+        public bool HasCustomIslandPosition { get; set; } = false;
+        public double IslandLeft { get; set; } = 0;
+        public double IslandTop { get; set; } = 0;
+
+        // AI 任务完成提醒
+        public bool EnableAiTaskMonitor { get; set; } = true;
+        public bool MonitorClaudeCode { get; set; } = true;
+        public bool MonitorCodex { get; set; } = true;
+        public bool EnableAiStalledAlert { get; set; } = false;
+        public int AiTaskPollIntervalSeconds { get; set; } = 5;
+        public int AiTaskNotificationSeconds { get; set; } = 6;
+
+
+
+
+
+        private static string ConfigPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings.json");
+
+        public static AppSettings Load()
+        {
+            try
+            {
+                if (File.Exists(ConfigPath))
+                {
+                    var json = File.ReadAllText(ConfigPath);
+                    return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+                }
+            }
+            catch { }
+            return new AppSettings();
+        }
+
+        public void Save()
+        {
+            try
+            {
+                var json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(ConfigPath, json);
+            }
+            catch { }
+        }
+    }
+
+    public class TodoItem
+    {
+        public DateTime ReminderTime { get; set; }
+        public string Content { get; set; } = string.Empty;
+        public bool IsCompleted { get; set; }
+    }
+}

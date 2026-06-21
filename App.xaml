@@ -1,0 +1,106 @@
+﻿<Application x:Class="WinIsland.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:WinIsland"
+             xmlns:tb="http://www.hardcodet.net/taskbar"
+             StartupUri="Views/MainWindow.xaml">
+    <Application.Resources>
+        <!-- 灵动岛风格颜色 -->
+        <Color x:Key="IslandBlack">#000000</Color>
+        <Color x:Key="IslandDarkGray">#1C1C1E</Color>
+        <Color x:Key="IslandLightGray">#2C2C2E</Color>
+        <Color x:Key="IslandAccent">#007AFF</Color>
+        <Color x:Key="IslandRed">#FF3B30</Color>
+        
+        <SolidColorBrush x:Key="IslandBackgroundBrush" Color="{StaticResource IslandDarkGray}"/>
+        <SolidColorBrush x:Key="IslandHoverBrush" Color="{StaticResource IslandLightGray}"/>
+        <SolidColorBrush x:Key="IslandTextBrush" Color="White"/>
+        <SolidColorBrush x:Key="IslandAccentBrush" Color="{StaticResource IslandAccent}"/>
+        <SolidColorBrush x:Key="IslandRedBrush" Color="{StaticResource IslandRed}"/>
+   
+
+        <!-- 托盘菜单容器样式 -->
+        <Style TargetType="ContextMenu">
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="OverridesDefaultStyle" Value="True" />
+            <Setter Property="Grid.IsSharedSizeScope" Value="true" />
+            <Setter Property="HasDropShadow" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <Border x:Name="Border" Background="#1C1C1E" BorderThickness="1" BorderBrush="#333333" CornerRadius="14" Padding="6" MinWidth="180">
+                            <Border.Effect>
+                                <DropShadowEffect Color="Black" BlurRadius="20" ShadowDepth="5" Opacity="0.4"/>
+                            </Border.Effect>
+                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 托盘菜单项样式 -->
+        <Style x:Key="IslandMenuItem" TargetType="MenuItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="Border" Background="{TemplateBinding Background}" CornerRadius="8" Padding="8,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="26"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter x:Name="Icon" ContentSource="Icon" HorizontalAlignment="Left" VerticalAlignment="Center" Width="16" Height="16"/>
+                                <ContentPresenter Grid.Column="1" ContentSource="Header" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#2C2C2E"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="IslandSeparator" TargetType="Separator">
+            <Setter Property="Background" Value="#3A3A3C"/>
+            <Setter Property="Height" Value="1"/>
+            <Setter Property="Margin" Value="10,4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Separator">
+                        <Border Background="{TemplateBinding Background}" Height="{TemplateBinding Height}" SnapsToDevicePixels="true"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <ContextMenu x:Key="TrayMenu">
+            <MenuItem Header="设置" Click="Settings_Click" Style="{StaticResource IslandMenuItem}">
+                <MenuItem.Icon>
+                    <Path Data="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z" 
+                          Fill="White" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <Separator Style="{StaticResource IslandSeparator}"/>
+            <MenuItem Header="退出" Click="Exit_Click" Style="{StaticResource IslandMenuItem}">
+                <MenuItem.Icon>
+                    <Path Data="M13,3h-2v10h2V3z M17.83,5.17l-1.42,1.42C17.99,7.86,19,9.81,19,12c0,3.87-3.13,7-7,7s-7-3.13-7-7 c0-2.19,1.01-4.14,2.58-5.42L6.17,5.17C4.23,6.82,3,9.26,3,12c0,4.97,4.03,9,9,9s9-4.03,9-9C21,9.26,19.77,6.82,17.83,5.17z" 
+                          Fill="#FF453A" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+        </ContextMenu>
+    </Application.Resources>
+</Application>
