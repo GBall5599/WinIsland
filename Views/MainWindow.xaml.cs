@@ -97,7 +97,7 @@ namespace WinIsland
             try { _viewModel.Media.PropertyChanged -= OnMediaPropertyChanged; } catch { }
             try { _viewModel.Dispose(); } catch { }
 
-            try { _statsService.OnStatsUpdated -= OnSystemStatsUpdated; _statsService.Stop(); } catch { }
+            try { _statsService.OnStatsUpdated -= OnSystemStatsUpdated; _statsService.Dispose(); } catch { }
             try
             {
                 _pomodoroService.OnTick -= OnPomodoroTick;
@@ -201,6 +201,12 @@ namespace WinIsland
             {
                 Dispatcher.Invoke(() =>
                 {
+                    if (_isNotificationActive)
+                    {
+                        SetMediaSuppressed(true);
+                        return;
+                    }
+
                     if (_viewModel.Media.IsActive)
                     {
                         if (ShouldCompactIsland())
@@ -460,6 +466,8 @@ namespace WinIsland
 
         private void DynamicIsland_MouseEnter(object? sender, System.Windows.Input.MouseEventArgs e)
         {
+            if (_isNotificationActive) return;
+
             ExitCompactIslandMode();
             CheckCurrentSession();
         }

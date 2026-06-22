@@ -27,6 +27,7 @@ namespace WinIsland.Services.AiTaskMonitor
         private System.Threading.Timer? _timer;
         private MonitorOptions _options = MonitorOptions.FromSettings(new AppSettings());
         private int _isScanning;
+        private bool _hasPrimed;
         private bool _disposed;
 
         public event EventHandler<AiTaskStateChangedEventArgs>? StateChanged;
@@ -53,6 +54,7 @@ namespace WinIsland.Services.AiTaskMonitor
                 lock (_sync)
                 {
                     _history.Clear();
+                    _hasPrimed = false;
                 }
                 return;
             }
@@ -100,6 +102,20 @@ namespace WinIsland.Services.AiTaskMonitor
 
             lock (_sync)
             {
+                if (!_hasPrimed)
+                {
+                    _history.Clear();
+                    foreach (var snapshot in snapshots)
+                    {
+                        var history = new SessionHistory();
+                        PrimeHistory(history, snapshot, now);
+                        _history[snapshot.SessionKey] = history;
+                    }
+
+                    _hasPrimed = true;
+                    return;
+                }
+
                 foreach (var staleKey in _history.Keys.Where(k => !liveKeys.Contains(k)).ToList())
                 {
                     _history.Remove(staleKey);
@@ -110,10 +126,14 @@ namespace WinIsland.Services.AiTaskMonitor
                     if (!_history.TryGetValue(snapshot.SessionKey, out var history))
                     {
                         history = new SessionHistory();
+                        PrimeHistory(history, snapshot, now);
                         _history[snapshot.SessionKey] = history;
+                        continue;
                     }
 
                     var previous = history.LastState;
+                    var previousLastWriteTime = history.LastWriteTime;
+                    var hasNewWrite = snapshot.LastWriteTime > previousLastWriteTime;
 
                     if (snapshot.IsActivelyWriting)
                     {
@@ -121,26 +141,22 @@ namespace WinIsland.Services.AiTaskMonitor
                         history.LastObservedWorkingAt = now;
                     }
 
-                    history.LastState = snapshot.State;
-                    history.LastWriteTime = snapshot.LastWriteTime;
-
                     if (snapshot.State == AiSessionState.Working)
                     {
                         history.LastNotifiedState = null;
                     }
 
-                    var isApprovalAttention = IsApprovalAttention(snapshot.AttentionMessage);
                     bool shouldNotify =
                         history.LastNotifiedState != snapshot.State &&
+                        previous == AiSessionState.Working &&
+                        history.WasObservedActive &&
                         (
-                            previous == AiSessionState.Working &&
-                            history.WasObservedActive &&
-                            (snapshot.State == AiSessionState.NeedsAttention ||
-                             (_options.StalledAlertEnabled && snapshot.State == AiSessionState.Stalled)) ||
-                            snapshot.State == AiSessionState.NeedsAttention &&
-                            isApprovalAttention &&
-                            now - snapshot.LastWriteTime <= ApprovalStartupWindow
+                            snapshot.State == AiSessionState.NeedsAttention && hasNewWrite ||
+                            _options.StalledAlertEnabled && snapshot.State == AiSessionState.Stalled
                         );
+
+                    history.LastState = snapshot.State;
+                    history.LastWriteTime = snapshot.LastWriteTime;
 
                     if (shouldNotify)
                     {
@@ -166,6 +182,15 @@ namespace WinIsland.Services.AiTaskMonitor
             {
                 StateChanged?.Invoke(this, notification);
             }
+        }
+
+        private static void PrimeHistory(SessionHistory history, AiSessionSnapshot snapshot, DateTime now)
+        {
+            history.LastState = snapshot.State;
+            history.LastWriteTime = snapshot.LastWriteTime;
+            history.WasObservedActive = snapshot.State == AiSessionState.Working && snapshot.IsActivelyWriting;
+            history.LastObservedWorkingAt = history.WasObservedActive ? now : null;
+            history.LastNotifiedState = snapshot.State == AiSessionState.NeedsAttention ? snapshot.State : null;
         }
 
         public static string BuildDiagnostics(AppSettings settings)
@@ -355,6 +380,67 @@ namespace WinIsland.Services.AiTaskMonitor
             if (marker == "complete")
             {
                 return age <= NeedsAttentionCap
+                    ? AiStateResult.NeedsAttention("\u4efb\u52a1\u5b8c\u6210\uff0c\u7b49\u5f85\u4f60\u67e5\u770b")
+                    : AiStateResult.Idle();
+            }
+
+            if (marker == "approval")
+            {
+                return age <= NeedsAttentionCap
+                    ? AiStateResult.NeedsAttention("\u9700\u8981\u4f60\u786e\u8ba4\u6216\u6388\u6743")
+                    : AiStateResult.Idle();
+            }
+
+            if (marker == "tool_use" && age >= ApprovalAttentionAfter && age <= NeedsAttentionCap)
+            {
+                return AiStateResult.NeedsAttention("\u53ef\u80fd\u9700\u8981\u4f60\u786e\u8ba4\u6216\u6388\u6743");
+            }
+
+            if (isActive || age < StallAfter)
+            {
+                return AiStateResult.Working();
+            }
+
+            return age <= StallCap ? AiStateResult.Stalled() : AiStateResult.Idle();
+        }
+
+        private static AiStateResult ClassifyCodex(IReadOnlyList<string> lines, TimeSpan age, bool isActive)
+        {
+            var marker = FindLatestCodexStateMarker(lines);
+            if (marker == "approval")
+            {
+                return age <= NeedsAttentionCap
+                    ? AiStateResult.NeedsAttention("\u9700\u8981\u4f60\u786e\u8ba4\u6216\u6388\u6743")
+                    : AiStateResult.Idle();
+            }
+
+            if (marker == "tool_call" && age >= ApprovalAttentionAfter && age <= NeedsAttentionCap)
+            {
+                return AiStateResult.NeedsAttention("\u53ef\u80fd\u9700\u8981\u4f60\u786e\u8ba4\u6216\u6388\u6743");
+            }
+
+            if (marker == "task_complete" || marker == "message")
+            {
+                return age <= NeedsAttentionCap
+                    ? AiStateResult.NeedsAttention("\u4efb\u52a1\u5b8c\u6210\uff0c\u7b49\u5f85\u4f60\u67e5\u770b")
+                    : AiStateResult.Idle();
+            }
+
+            if (isActive || age < StallAfter)
+            {
+                return AiStateResult.Working();
+            }
+
+            return age <= StallCap ? AiStateResult.Stalled() : AiStateResult.Idle();
+        }
+
+#if false
+        private static AiStateResult ClassifyClaude_EncodingDamaged(IReadOnlyList<string> lines, TimeSpan age, bool isActive)
+        {
+            var marker = FindLatestClaudeStateMarker(lines);
+            if (marker == "complete")
+            {
+                return age <= NeedsAttentionCap
                     ? AiStateResult.NeedsAttention("任务完成，等待你查看")
                     : AiStateResult.Idle();
             }
@@ -409,6 +495,7 @@ namespace WinIsland.Services.AiTaskMonitor
             return age <= StallCap ? AiStateResult.Stalled() : AiStateResult.Idle();
         }
 
+#endif
         private static string? FindLatestClaudeStateMarker(IReadOnlyList<string> lines)
         {
             for (var i = lines.Count - 1; i >= 0; i--)

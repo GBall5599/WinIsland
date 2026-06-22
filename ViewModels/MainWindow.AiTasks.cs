@@ -110,6 +110,9 @@ namespace WinIsland
             TxtAiTaskTitle.Text = e.Provider == AiProvider.Claude ? "CLAUDE CODE" : "CODEX";
             TxtAiTaskGlyph.Text = e.Provider == AiProvider.Claude ? "CC" : "CX";
 
+            ApplyAiTaskText(e);
+
+#if false
             if (e.CurrentState == AiSessionState.Stalled)
             {
                 TxtAiTaskBody.Text = "任务可能停住了";
@@ -132,7 +135,32 @@ namespace WinIsland
                 PlayIslandGlowEffect(needsApproval ? Colors.Orange : MediaColor.FromRgb(0, 217, 255));
             }
 
+﻿#endif
             PlayContentEntranceAnimation(AiTaskPanel);
+        }
+
+        private void ApplyAiTaskText(AiTaskStateChangedEventArgs e)
+        {
+            if (e.CurrentState == AiSessionState.Stalled)
+            {
+                TxtAiTaskBody.Text = "\u4efb\u52a1\u53ef\u80fd\u505c\u4f4f\u4e86";
+                TxtAiTaskStatus.Text = "CHECK";
+                TxtAiTaskStatus.Foreground = new SolidColorBrush(MediaColor.FromRgb(255, 159, 10));
+                PlayIslandGlowEffect(Colors.Orange);
+                return;
+            }
+
+            var message = string.IsNullOrWhiteSpace(e.AttentionMessage)
+                ? "\u4efb\u52a1\u5b8c\u6210\uff0c\u7b49\u5f85\u4f60\u67e5\u770b"
+                : e.AttentionMessage;
+            var needsApproval = message.Contains("\u786e\u8ba4") || message.Contains("\u6388\u6743");
+
+            TxtAiTaskBody.Text = message;
+            TxtAiTaskStatus.Text = needsApproval ? "CHECK" : "DONE";
+            TxtAiTaskStatus.Foreground = new SolidColorBrush(needsApproval
+                ? MediaColor.FromRgb(255, 159, 10)
+                : MediaColor.FromRgb(48, 209, 88));
+            PlayIslandGlowEffect(needsApproval ? Colors.Orange : MediaColor.FromRgb(0, 217, 255));
         }
     }
 }

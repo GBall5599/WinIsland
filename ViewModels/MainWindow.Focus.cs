@@ -98,7 +98,10 @@ namespace WinIsland
             _isCompactIsland = false;
             DynamicIsland.BeginAnimation(UIElement.OpacityProperty, null);
             DynamicIsland.Opacity = 1.0;
-            SetMediaSuppressed(false);
+            if (!_isNotificationActive)
+            {
+                SetMediaSuppressed(false);
+            }
         }
 
         private void TriggerMediaPeek()
@@ -146,7 +149,7 @@ namespace WinIsland
                     {
                         ShowSystemMonitorPanel();
                         // 隐身模式下，初始默认不启动，等滑出来再启动
-                        _statsService.Stop(); 
+                        _statsService.Start();
                     }
                     else
                     {
@@ -187,10 +190,21 @@ namespace WinIsland
         {
             HideAllPanels();
             SystemMonitorPanel.Visibility = Visibility.Visible;
+            EnsureSystemMonitorDefaults();
             
-            _widthSpring.Target = 220;
+            _widthSpring.Target = 310;
             _heightSpring.Target = 35;
             DynamicIsland.Opacity = 0.95;
+        }
+
+        private void EnsureSystemMonitorDefaults()
+        {
+            if (string.IsNullOrWhiteSpace(TxtCpuUsage.Text)) TxtCpuUsage.Text = "0%";
+            if (string.IsNullOrWhiteSpace(TxtRamUsage.Text)) TxtRamUsage.Text = "0%";
+            if (string.IsNullOrWhiteSpace(TxtCpuTemp.Text)) TxtCpuTemp.Text = "N/A";
+            if (string.IsNullOrWhiteSpace(TxtGpuTemp.Text)) TxtGpuTemp.Text = "N/A";
+            if (string.IsNullOrWhiteSpace(TxtUploadSpeed.Text)) TxtUploadSpeed.Text = "0 B/s";
+            if (string.IsNullOrWhiteSpace(TxtDownloadSpeed.Text)) TxtDownloadSpeed.Text = "0 B/s";
         }
 
         private void ShowPomodoroPanel()
@@ -211,6 +225,8 @@ namespace WinIsland
 
                 TxtCpuUsage.Text = stats.GetFormattedCpu();
                 TxtRamUsage.Text = stats.GetFormattedRam();
+                TxtCpuTemp.Text = stats.GetFormattedCpuTemp();
+                TxtGpuTemp.Text = stats.GetFormattedGpuTemp();
                 TxtUploadSpeed.Text = stats.GetFormattedUpload();
                 TxtDownloadSpeed.Text = stats.GetFormattedDownload();
             });

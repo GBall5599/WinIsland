@@ -577,6 +577,7 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     
                     <!-- CPU -->
@@ -591,14 +592,32 @@
                         <TextBlock x:Name="TxtRamUsage" Text="0%" Foreground="White" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <!-- Network -->
-                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                    <!-- Temperature -->
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,12,0">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <TextBlock Text="CPU" Foreground="#8E8E93" FontSize="8" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TxtCpuTemp" Text="N/A" Foreground="#FF9F0A" FontSize="9" FontWeight="Bold" MinWidth="22" TextAlignment="Right" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <TextBlock Text="GPU" Foreground="#8E8E93" FontSize="8" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TxtGpuTemp" Text="N/A" Foreground="#BF5AF2" FontSize="9" FontWeight="Bold" MinWidth="22" TextAlignment="Right" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Network -->
+                    <StackPanel Grid.Column="3" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <TextBlock Text="UP" Foreground="#30D158" FontSize="8" Margin="0,0,2,0" VerticalAlignment="Center"/>
+                            <!--
                             <TextBlock Text="↑" Foreground="#30D158" FontSize="8" Margin="0,0,2,0" VerticalAlignment="Center"/>
+                            -->
                             <TextBlock x:Name="TxtUploadSpeed" Text="0 KB/s" Foreground="#8E8E93" FontSize="9" VerticalAlignment="Center"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <TextBlock Text="DN" Foreground="#0A84FF" FontSize="8" Margin="0,0,2,0" VerticalAlignment="Center"/>
+                            <!--
                             <TextBlock Text="↓" Foreground="#0A84FF" FontSize="8" Margin="0,0,2,0" VerticalAlignment="Center"/>
+                            -->
                             <TextBlock x:Name="TxtDownloadSpeed" Text="0 KB/s" Foreground="#8E8E93" FontSize="9" VerticalAlignment="Center"/>
                         </StackPanel>
                     </StackPanel>

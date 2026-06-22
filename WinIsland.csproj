@@ -31,9 +31,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.2428" />
     <PackageReference Include="NAudio" Version="2.2.1" />
-    <PackageReference Include="System.Management" Version="10.0.1" />
+    <PackageReference Include="System.Management" Version="10.0.2" />
     <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="1.1.0" />
   </ItemGroup>
 
