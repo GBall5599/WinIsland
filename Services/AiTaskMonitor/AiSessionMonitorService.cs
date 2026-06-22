@@ -17,7 +17,8 @@ namespace WinIsland.Services.AiTaskMonitor
         private static readonly TimeSpan ActiveWindow = TimeSpan.FromSeconds(20);
         private static readonly TimeSpan AttentionWindow = TimeSpan.FromMinutes(30);
         private static readonly TimeSpan NeedsAttentionCap = TimeSpan.FromMinutes(20);
-        private static readonly TimeSpan ToolUseAttentionAfter = TimeSpan.FromSeconds(45);
+        private static readonly TimeSpan ApprovalAttentionAfter = TimeSpan.FromSeconds(12);
+        private static readonly TimeSpan ApprovalStartupWindow = TimeSpan.FromMinutes(3);
         private static readonly TimeSpan StallAfter = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan StallCap = TimeSpan.FromMinutes(15);
 
@@ -128,12 +129,18 @@ namespace WinIsland.Services.AiTaskMonitor
                         history.LastNotifiedState = null;
                     }
 
+                    var isApprovalAttention = IsApprovalAttention(snapshot.AttentionMessage);
                     bool shouldNotify =
-                        previous == AiSessionState.Working &&
-                        history.WasObservedActive &&
-                        (snapshot.State == AiSessionState.NeedsAttention ||
-                         (_options.StalledAlertEnabled && snapshot.State == AiSessionState.Stalled)) &&
-                        history.LastNotifiedState != snapshot.State;
+                        history.LastNotifiedState != snapshot.State &&
+                        (
+                            previous == AiSessionState.Working &&
+                            history.WasObservedActive &&
+                            (snapshot.State == AiSessionState.NeedsAttention ||
+                             (_options.StalledAlertEnabled && snapshot.State == AiSessionState.Stalled)) ||
+                            snapshot.State == AiSessionState.NeedsAttention &&
+                            isApprovalAttention &&
+                            now - snapshot.LastWriteTime <= ApprovalStartupWindow
+                        );
 
                     if (shouldNotify)
                     {
@@ -359,7 +366,7 @@ namespace WinIsland.Services.AiTaskMonitor
                     : AiStateResult.Idle();
             }
 
-            if (marker == "tool_use" && age >= ToolUseAttentionAfter && age <= NeedsAttentionCap)
+            if (marker == "tool_use" && age >= ApprovalAttentionAfter && age <= NeedsAttentionCap)
             {
                 return AiStateResult.NeedsAttention("可能需要你确认或授权");
             }
@@ -380,6 +387,11 @@ namespace WinIsland.Services.AiTaskMonitor
                 return age <= NeedsAttentionCap
                     ? AiStateResult.NeedsAttention("需要你确认或授权")
                     : AiStateResult.Idle();
+            }
+
+            if (marker == "tool_call" && age >= ApprovalAttentionAfter && age <= NeedsAttentionCap)
+            {
+                return AiStateResult.NeedsAttention("可能需要你确认或授权");
             }
 
             if (marker == "task_complete" || marker == "message")
@@ -418,6 +430,18 @@ namespace WinIsland.Services.AiTaskMonitor
                         return "approval";
                     }
 
+                    if (type == "attachment" &&
+                        root.TryGetProperty("attachment", out var attachment) &&
+                        TryGetString(attachment, "type", out var attachmentType))
+                    {
+                        if (IsApprovalMarker(attachmentType))
+                        {
+                            return "approval";
+                        }
+
+                        continue;
+                    }
+
                     if (type != "assistant")
                     {
                         continue;
@@ -441,6 +465,11 @@ namespace WinIsland.Services.AiTaskMonitor
                         }
 
                         return "working";
+                    }
+
+                    if (MessageContainsContentType(message, "tool_use"))
+                    {
+                        return "tool_use";
                     }
 
                     return "working";
@@ -486,6 +515,11 @@ namespace WinIsland.Services.AiTaskMonitor
                         root.TryGetProperty("payload", out var responsePayload) &&
                         TryGetString(responsePayload, "type", out var responseType))
                     {
+                        if (responseType is "function_call" or "custom_tool_call")
+                        {
+                            return "tool_call";
+                        }
+
                         if (responseType is "message" or "reasoning" or "function_call" or "function_call_output" or "custom_tool_call" or "custom_tool_call_output")
                         {
                             return responseType;
@@ -501,6 +535,25 @@ namespace WinIsland.Services.AiTaskMonitor
             return null;
         }
 
+        private static bool MessageContainsContentType(JsonElement message, string contentType)
+        {
+            if (!message.TryGetProperty("content", out var content) ||
+                content.ValueKind != JsonValueKind.Array)
+            {
+                return false;
+            }
+
+            foreach (var item in content.EnumerateArray())
+            {
+                if (TryGetString(item, "type", out var type) && type == contentType)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private static bool IsApprovalMarker(string value)
         {
             if (value.Equals("permission-mode", StringComparison.OrdinalIgnoreCase))
@@ -511,6 +564,12 @@ namespace WinIsland.Services.AiTaskMonitor
             return value.Contains("approval", StringComparison.OrdinalIgnoreCase) ||
                    value.Contains("permission", StringComparison.OrdinalIgnoreCase) ||
                    value.Contains("confirm", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsApprovalAttention(string message)
+        {
+            return message.Contains("确认", StringComparison.OrdinalIgnoreCase) ||
+                   message.Contains("授权", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool TryGetString(JsonElement element, string propertyName, out string value)

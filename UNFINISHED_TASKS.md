@@ -2,6 +2,8 @@
 
 ## AI 权限/同意等待状态未可靠通知
 
+状态：已做第一轮修复，仍建议在真实权限弹窗场景下继续校准。
+
 ### 现象
 
 当 Codex 或 Claude Code 执行到需要用户提供权限、确认、同意继续的步骤时，WinIsland 目前不一定会弹出提醒。
@@ -10,13 +12,16 @@
 
 ### 当前实现
 
-当前已尝试支持：
+当前已支持：
 
 - Codex: 识别 JSONL 结构字段中包含 `approval` / `permission` / `confirm` 的事件。
 - Claude Code: 识别明确的 approval/permission/confirm 类结构事件。
-- Claude Code: 当最近状态为 `tool_use` 且长时间没有继续写入时，提示“可能需要你确认或授权”。
+- Claude Code: 识别 `attachment.type == command_permissions`。
+- Claude Code: 当最近状态为 `tool_use` 且超过 12 秒没有继续写入时，提示“可能需要你确认或授权”。
+- Codex: 当最近状态停在 `response_item.payload.type == function_call/custom_tool_call` 且超过 12 秒没有对应输出时，提示“可能需要你确认或授权”。
+- 如果 WinIsland 启动时 AI 已经在最近 3 分钟内进入确认/授权等待状态，也会补发提醒。
 
-### 未解决点
+### 仍需观察点
 
 真实使用中，Codex/Claude 需要用户同意时，可能没有写入稳定、明确的 `approval` / `permission` / `confirm` 结构事件。
 
@@ -27,7 +32,7 @@
 - Claude Code 的 `tool_use` 既可能表示正常工具调用，也可能表示等待权限，不能简单全部当作需要用户确认，否则会误报。
 - Codex 新版本在等待确认时可能使用了不同的 `event_msg.payload.type` 或其它字段。
 
-### 下一步
+### 后续校准方向
 
 需要在真实“等待权限/同意”的瞬间采集 JSONL 尾部结构字段，只记录字段名和值，不记录 prompt、回复正文、工具输入输出。
 
